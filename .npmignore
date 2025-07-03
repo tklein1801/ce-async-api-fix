@@ -1,5 +1,7 @@
 node_modules/
 ci/
+src/
 .prettierrc
 *.(spec|test).ts
-vitest.jconfig.ts
+vitest.config.ts
+tsconfig.json
