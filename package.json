@@ -1,0 +1,35 @@
+{
+  "name": "@tklein1801/ce-async-api-fix",
+  "version": "1.0.0",
+  "main": "lib/cli.js",
+  "types": "lib/cli.d.ts",
+  "bin": {
+    "ep-async-api-importer": "./lib/cli.js"
+  },
+  "scripts": {
+    "build": "npx rimraf lib && tsc",
+    "test": "vitest run"
+  },
+  "author": "Thorben Klein",
+  "license": "",
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tklein1801/ce-async-api-fix"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@drizzle-team/brocli": "^0.11.0"
+  }
+}
