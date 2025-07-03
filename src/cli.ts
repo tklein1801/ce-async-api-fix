@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import {command, string, boolean, run} from '@drizzle-team/brocli';
 import fs from 'fs';
 import path from 'path';
