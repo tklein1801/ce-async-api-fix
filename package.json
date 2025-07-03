@@ -4,7 +4,7 @@
   "main": "lib/cli.js",
   "types": "lib/cli.d.ts",
   "bin": {
-    "ep-async-api-importer": "./lib/cli.js"
+    "ce-async-api-fix": "./lib/cli.js"
   },
   "scripts": {
     "build": "npx rimraf lib && tsc",

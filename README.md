@@ -1,5 +1,7 @@
 # ep-async-api-fix
 
+![CI](https://ci.tools.tklein.it/api/v1/teams/main/pipelines/ce-async-api-fix/badge)
+
 ## Getting started
 
 ### Use the tool
