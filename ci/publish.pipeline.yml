@@ -70,6 +70,7 @@ task-config: &task-release
         npm ci
         cd ../../
         npm ci
+        npm run build
         npm version "$NEW_VERSION" --no-git-tag-version
         git tag | xargs git tag -d > /dev/null
         git tag -a "((service_name))-v$NEW_VERSION" -m "Release ((service_name))-v$NEW_VERSION" > /dev/null
@@ -110,6 +111,7 @@ jobs:
                 NEW_VERSION=$(cat version/version)
                 cd repo
                 npm ci
+                npm run build
                 npm version "$NEW_VERSION" --no-git-tag-version
                 npm publish --access public --dry-run
       - put: version
