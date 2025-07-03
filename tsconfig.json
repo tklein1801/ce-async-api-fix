@@ -1,15 +1,28 @@
 {
+  "compileOnSave": false,
   "compilerOptions": {
-    "target": "ES2019",
+    "outDir": "lib",
+    "target": "es2021",
+    "lib": ["es2021", "dom"],
     "module": "commonjs",
-    "moduleResolution": "node",
     "declaration": true,
-    "outDir": "./lib",
     "strict": true,
+    "noImplicitAny": true,
     "esModuleInterop": true,
+    "moduleResolution": "node",
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": false,
     "skipLibCheck": true,
-    "types": ["vitest/globals"]
+    "sourceMap": true,
+    "strictPropertyInitialization": false,
+    "resolveJsonModule": true,
+    "rootDir": "."
   },
-  "include": ["./src"],
-  "exclude": ["node_modules/**", "lib/**", "**/*.spec.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["list", "node_modules"]
 }

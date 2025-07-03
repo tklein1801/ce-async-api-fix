@@ -1,13 +1,12 @@
 {
   "name": "@tklein1801/ce-async-api-fix",
   "version": "1.0.0",
-  "main": "lib/src/cli.js",
-  "types": "lib/src/cli.d.ts",
   "bin": {
     "ce-async-api-fix": "./lib/src/cli.js"
   },
   "scripts": {
-    "build": "npx rimraf lib && tsc",
+    "start": "node lib/src/cli.js",
+    "build": "rimraf lib && tsc",
     "test": "vitest run"
   },
   "author": "Thorben Klein",
