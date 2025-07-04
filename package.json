@@ -1,6 +1,9 @@
 {
   "name": "@tklein1801/ce-async-api-fix",
   "version": "1.0.0",
+  "author": "Thorben Klein",
+  "license": "",
+  "description": "A compact CLI tool to fix AsyncAPI schemas for SAP events by moving messageTraits CloudEvents and setting the correct namespace in topics for seamless import into Solace PubSub+ or SAP Event Portal.",
   "bin": {
     "ce-async-api-fix": "./lib/src/cli.js"
   },
@@ -9,9 +12,6 @@
     "build": "rimraf lib && tsc",
     "test": "vitest run"
   },
-  "author": "Thorben Klein",
-  "license": "",
-  "description": "",
   "repository": {
     "type": "git",
     "url": "https://github.com/tklein1801/ce-async-api-fix"
@@ -29,6 +29,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@drizzle-team/brocli": "^0.11.0"
+    "@drizzle-team/brocli": "^0.11.0",
+    "asyncapi-validator": "^5.1.1"
   }
 }

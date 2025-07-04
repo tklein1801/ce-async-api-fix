@@ -4,11 +4,12 @@ import {command, string, boolean, run} from '@drizzle-team/brocli';
 import fs from 'fs';
 import path from 'path';
 import {createLogger} from './logger';
+import {version as cliVersion, name as cliName, description as cliDescription} from '../package.json';
 
 const logger = createLogger({label: 'cli', level: 'info'});
 
 const version = async () => {
-  const envVersion = '1.0.0';
+  const envVersion = cliVersion;
   console.log(envVersion);
 };
 
@@ -150,8 +151,8 @@ const convert = command({
 });
 
 run([convert], {
-  name: 'NAME',
-  description: 'DESCRIPTION',
+  name: cliName,
+  description: cliDescription,
   version: version,
 });
 
