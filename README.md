@@ -311,3 +311,9 @@ This is a compact CLI tool for fixing two errors that might occur when generatin
   }
 }
 ```
+
+## Credits
+
+| Source                                                        | Information                                                       |
+| :------------------------------------------------------------ | :---------------------------------------------------------------- |
+| [@asyncapi/parser-js](https://github.com/asyncapi/parser-js/) | I've took the `spec-types` from `/packages/parser/src/spec-types` |

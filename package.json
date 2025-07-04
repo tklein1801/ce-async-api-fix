@@ -21,6 +21,7 @@
     "tag": "latest"
   },
   "devDependencies": {
+    "@types/json-schema": "^7.0.15",
     "@types/node": "^24.0.10",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
@@ -29,6 +30,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@drizzle-team/brocli": "^0.11.0"
+    "@drizzle-team/brocli": "^0.11.0",
+    "json-schema": "^0.4.0"
   }
 }

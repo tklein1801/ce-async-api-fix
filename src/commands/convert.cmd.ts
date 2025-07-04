@@ -2,7 +2,10 @@ import {command, string, boolean, run} from '@drizzle-team/brocli';
 import {logger} from '../cli';
 import fs from 'fs';
 import path from 'path';
+import {v2, v3} from '../spec-types';
 import {writeOutput} from '../utils';
+import {ComponentNotFoundError} from '../error';
+import {deprecate} from 'util';
 
 export const convert = command({
   name: 'convert',
@@ -21,6 +24,7 @@ export const convert = command({
     const fileExtension = path.extname(options.input).toLowerCase();
     logger.debug('File extension: ' + fileExtension);
 
+    const file = fs.readFileSync(options.input, 'utf-8');
     // FIXME: Support YAML and YML
     if (fileExtension !== '.json' /*&& fileExtension !== '.yaml' && fileExtension !== '.yml'*/) {
       // logger.error('Unsupported file type: ' + fileExtension + '! Only JSON and YAML (or YML) are supported.');
@@ -32,89 +36,60 @@ export const convert = command({
     switch (fileExtension) {
       case '.json':
         logger.info('Converting JSON file...');
-        const json = JSON.parse(fs.readFileSync(options.input, 'utf-8'));
+        const json = JSON.parse(file) as v2.AsyncAPIObject | v3.AsyncAPIObject;
         logger.debug('Parsed JSON file');
 
-        let components = json.components || {};
-        const schemas = components.schemas || {};
+        let components = json.components;
+        if (!components) throw new ComponentNotFoundError('components');
+
+        const schemas = components.schemas;
+        if (!schemas) throw new ComponentNotFoundError('schemas');
         const schemaNames = Object.keys(schemas);
 
         // If options.namespace is provided then prefix the topic with the namespace
         if (options.namespace) {
           const namespace = options.namespace.endsWith('/') ? options.namespace : options.namespace + '/';
-          if ('channels' in json) {
-            const channels = json.channels || {};
-            const channelNames = Object.keys(channels);
-
-            for (const channelName of channelNames) {
-              channels[namespace + channelName] = channels[channelName] as object;
-              delete channels[channelName];
-            }
-          } else {
-            logger.error('No channels are defined in the specification');
-            return;
-          }
+          json.channels = prefixTopicnamespace(namespace, json.channels);
         }
 
-        // Move properties of message to data-node
+        const messageTraits = components.messageTraits;
+        if (!messageTraits) {
+          throw new ComponentNotFoundError('messageTraits', 'components');
+        }
+        const CloudEventContext = messageTraits.CloudEventContext as v2.MessageTraitObject | v3.MessageTraitObject;
+        if (!CloudEventContext) {
+          throw new ComponentNotFoundError('CloudEventContext', 'messageTraits');
+        }
+
+        const CECHeaders = CloudEventContext.headers as v2.AsyncAPISchemaDefinition | v3.AsyncAPISchemaDefinition; // | v3.MessageTraitObject['headers']; // | v2.MessageTraitObject['headers']
+        const CECHeadersRequriedAttrs = ['data', ...(CECHeaders.required || [])];
+        const CECHeadersProperties = CECHeaders.properties;
+
+        // Modify schemas
+        logger.info('Processing schemas...');
         for (const schemaName of schemaNames) {
-          const schema = schemas[schemaName] as object;
-          if ('type' in schema && schema.type === 'object') {
-            logger.debug('Processing object schema: ' + schemaName);
-            if ('properties' in schema) {
-              schema.properties = {
-                data: {
-                  type: 'object',
-                  properties: schema.properties as object,
-                },
-              };
-            } else {
-              logger.debug('No properties found in schema: ' + schemaName);
-              continue;
-            }
-          } else {
-            logger.debug('Skipping non-object schema: ' + schemaName);
-            continue;
-          }
+          logger.debug('[NEW] Processing schema for: ' + schemaName);
+          let updatedSchema = schemas[schemaName];
 
-          logger.debug('Moved schema-properties to data-node');
+          // Wrap properties below data-node
+          updatedSchema = wrapInDataNode(updatedSchema);
+
+          if (updatedSchema)
+            Object.assign(updatedSchema, {
+              properties: {
+                // FIXME:
+                // @ts-expect-error
+                ...updatedSchema.properties,
+                // Add CloudEventContext headers to the schema properties
+                // These will contain the attributes for an CloudEvent
+                ...CECHeadersProperties,
+              },
+              required: CECHeadersRequriedAttrs,
+            });
+
+          components.schemas![schemaName] = updatedSchema;
         }
-
-        // Wrap message-properties in CloudEvent-structure
-        const CloudEventContext = components.messageTraits.CloudEventContext as object;
-        if (CloudEventContext == undefined) {
-          logger.error('CloudEventContext not found in messageTraits! Please provide a valid CloudEventContext.');
-          return;
-        } else {
-          // @ts-expect-error
-          const headers = CloudEventContext.headers;
-          const required = [...headers.required, 'data'] as string[];
-          const headerProperties = headers.properties as object;
-
-          for (const schemaName of schemaNames) {
-            const schema = schemas[schemaName] as object;
-            if ('type' in schema && schema.type === 'object') {
-              logger.debug('Processing object schema: ' + schemaName);
-              if ('properties' in schema) {
-                const properties = schema.properties as object;
-                schema.properties = {
-                  ...headerProperties,
-                  ...properties,
-                };
-
-                Object.assign(schema, {
-                  required: required,
-                });
-              } else {
-                logger.debug('No properties found in schema: ' + schemaName);
-                continue;
-              }
-            } else {
-              logger.debug('Skipping non-object schema: ' + schemaName);
-              continue;
-            }
-          }
-        }
+        logger.info('Modifying of schemas completed!');
 
         logger.info('Writing modified JSON file...');
         writeOutput(JSON.stringify(json, null, 2), options.output);
@@ -135,3 +110,53 @@ export const convert = command({
     logger.info('Applied the necessary modifications to the JSON schema for an import into the SAP AEM Event Portal!');
   },
 });
+
+function wrapInDataNode(schema: v2.SchemaObject | v3.SchemaObject): v2.SchemaObject | v3.SchemaObject {
+  const schemaValue = schema.valueOf();
+  // Check if schema is the type of an object and contains properties
+  if (
+    typeof schemaValue !== 'boolean' &&
+    'type' in schemaValue &&
+    schemaValue.type === 'object' &&
+    'properties' in schemaValue
+  ) {
+    return {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: schemaValue.properties,
+        },
+      },
+    } as v2.SchemaObject | v3.SchemaObject;
+  }
+
+  logger.warn(
+    "Couldn't wrap properties in data-node because schema is not an object or does not contain properties",
+    schema,
+  );
+  return schema;
+}
+
+/**
+ * Prefixes the topic namespace for all channels.
+ * @param namespacePrefix The namespace prefix to add.
+ * @param channels The channels to modify.
+ * @returns The modified channels with prefixed topic namespaces.
+ */
+function prefixTopicnamespace(
+  namespacePrefix: string,
+  channels: v2.ChannelsObject | v3.ChannelsObject | undefined,
+): v2.ChannelsObject | v3.ChannelsObject {
+  if (!channels) {
+    throw new ComponentNotFoundError('channels', 'channel');
+  }
+
+  return Object.keys(channels).reduce(
+    (mapped, channelName) => {
+      mapped[namespacePrefix + channelName] = channels[channelName];
+      return mapped;
+    },
+    {} as v2.ChannelsObject | v3.ChannelsObject,
+  );
+}
