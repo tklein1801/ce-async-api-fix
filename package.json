@@ -29,7 +29,6 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@drizzle-team/brocli": "^0.11.0",
-    "asyncapi-validator": "^5.1.1"
+    "@drizzle-team/brocli": "^0.11.0"
   }
 }
