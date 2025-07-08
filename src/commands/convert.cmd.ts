@@ -1,17 +1,17 @@
-import {command, string, boolean, run} from '@drizzle-team/brocli';
+import {command, string} from '@drizzle-team/brocli';
 import {logger} from '../cli';
 import fs from 'fs';
 import path from 'path';
 import {v2, v3} from '../spec-types';
 import {writeOutput} from '../utils';
 import {ComponentNotFoundError} from '../error';
-import {deprecate} from 'util';
 
 export const convert = command({
   name: 'convert',
   options: {
     input: string().alias('in').desc('Path to the AsyncAPI specification file').required(),
     output: string().alias('out').desc('Path to the output file (including filename)').required(),
+    ignoreSchema: string().alias('is').desc('Regular expression to skip modifying matching schemas'),
     namespace: string(),
   },
   async handler(options) {
@@ -68,7 +68,12 @@ export const convert = command({
         // Modify schemas
         logger.info('Processing schemas...');
         for (const schemaName of schemaNames) {
-          logger.debug('[NEW] Processing schema for: ' + schemaName);
+          if (options.ignoreSchema && new RegExp(options.ignoreSchema).test(schemaName)) {
+            logger.debug('Skipping schema: ' + schemaName, options);
+            continue;
+          }
+
+          logger.debug('Processing schema for: ' + schemaName);
           let updatedSchema = schemas[schemaName];
 
           // Wrap properties below data-node
