@@ -1,7 +1,12 @@
 node_modules/
+.github/
 ci/
-src/
-.prettierrc
-*.(spec|test).ts
-vitest.config.ts
+src/**
 tsconfig.json
+.prettierrc
+
+# Ignore test related stuff...
+lib/src/test/
+*.spec.*
+*.test.*
+vitest.config.ts
