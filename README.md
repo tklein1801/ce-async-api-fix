@@ -1,6 +1,9 @@
 # ep-async-api-fix
 
 ![CI](https://ci.tools.tklein.it/api/v1/teams/main/pipelines/ce-async-api-fix/badge)
+![NPM Version](https://img.shields.io/npm/v/%40tklein1801%2Fce-async-api-fix)
+![NPM License](https://img.shields.io/npm/l/%40tklein1801%2Fce-async-api-fix)
+![NPM Last Update](https://img.shields.io/npm/last-update/%40tklein1801%2Fce-async-api-fix)
 
 ## Getting started
 
@@ -316,4 +319,5 @@ This is a compact CLI tool for fixing two errors that might occur when generatin
 
 | Source                                                        | Information                                                       |
 | :------------------------------------------------------------ | :---------------------------------------------------------------- |
+| [drizzle-team/brocli](https://github.com/drizzle-team/brocli) | This package was used to build the CLI                            |
 | [@asyncapi/parser-js](https://github.com/asyncapi/parser-js/) | I've took the `spec-types` from `/packages/parser/src/spec-types` |
