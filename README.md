@@ -46,7 +46,14 @@ npx @tklein1801/ce-async-api-fix --help
 
 ## About
 
-This is a compact CLI tool for fixing two errors that might occur when generating an AsyncAPI schema for SAP events. It ensures that these schemas can be seamlessly imported into the Solace PubSub+|SAP AEM Event Portal.
+This CLI is used to modify/correct AsyncAPI specifications in order to prepare them for import between SAP S/4Hana systems using the Event Enablement Framework and SAP AEM/Solace PubSub+. These steps are currently necessary due to the differences in how AsyncAPI specifications are used in the SAP S4/Hana environment.
+
+### `convert`
+
+The `convert` command can be used to correct two errors/problems that occur when generating/exporting an AsyncAPI specification for an event. Er stellt sicher, dass diese Schemas nahtlos in das Solace PubSub+|SAP AEM Event Portal importiert werden können.
+
+> [!TIP]
+> For more informations about the command you can run `npx @tklein1801/ce-async-api-fix convert --help`
 
 **Problems Addressed**
 
@@ -314,6 +321,13 @@ This is a compact CLI tool for fixing two errors that might occur when generatin
   }
 }
 ```
+
+### `for-import`
+
+The `for-import` command can be used to prepare an AsyncAPI specification version 2.0.0 for import or use in creating an Event Consumption Model. The steps and requirements for this process can be found in the [Tchibo documentation](https://wiki.tchibo-intranet.de/x/eY-xOw).
+
+> [!TIP]
+> For more informations about the command you can run `npx @tklein1801/ce-async-api-fix for-import --help`
 
 ## Credits
 

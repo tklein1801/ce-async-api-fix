@@ -3,12 +3,12 @@
 import {boolean, run} from '@drizzle-team/brocli';
 import {createLogger, type LogLevel} from './logger';
 import {version as cliVersion, name as cliName, description as cliDescription} from '../package.json';
-import {convert} from './commands';
+import {convert, forImport} from './commands';
 
-const DEFAULT_LOG_LEVEL: LogLevel = 'info';
+const DEFAULT_LOG_LEVEL: LogLevel = 'error';
 export const logger = createLogger({label: 'cli', level: DEFAULT_LOG_LEVEL});
 
-run([convert], {
+run([convert, forImport], {
   name: cliName,
   description: cliDescription,
   version: () => {
