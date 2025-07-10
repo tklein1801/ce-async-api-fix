@@ -5,10 +5,10 @@
   "license": "",
   "description": "A compact CLI tool to fix AsyncAPI schemas for SAP events by moving messageTraits CloudEvents and setting the correct namespace in topics for seamless import into Solace PubSub+ or SAP Event Portal.",
   "bin": {
-    "ce-async-api-fix": "./lib/src/cli.js"
+    "ce-async-api-fix": "./lib/cli.js"
   },
   "scripts": {
-    "start": "node lib/src/cli.js",
+    "start": "node lib/cli.js",
     "build": "rimraf lib && tsc",
     "test": "vitest run"
   },
