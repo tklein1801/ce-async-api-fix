@@ -1,8 +1,8 @@
-import { LOG_COLORS, LOG_LEVEL_COLORS } from './config';
+import {LOG_COLORS, LOG_LEVEL_COLORS} from './config';
 
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+export type LogLevel = 'silent' | 'info' | 'warn' | 'error' | 'debug';
 
-export const LogLevels = ['info', 'warn', 'error', 'debug'] as const;
+export const LogLevels = ['silent', 'info', 'warn', 'error', 'debug'] as const;
 
 export function shouldPublishLog(currentLogLevel: LogLevel, logLevel: LogLevel): boolean {
   return LogLevels.indexOf(logLevel) <= LogLevels.indexOf(currentLogLevel);
@@ -19,20 +19,13 @@ export interface Logger {
   log?: (level: LogLevel, message: string, ...args: any[]) => void;
 }
 
-export type LogHandlerParams = Parameters<NonNullable<Logger['log']>> extends [
-  LogLevel,
-  ...infer Rest
-]
-  ? Rest
-  : never;
+export type LogHandlerParams = Parameters<NonNullable<Logger['log']>> extends [LogLevel, ...infer Rest] ? Rest : never;
 
 const formatMessage = (level: LogLevel, message: string, label: string): string => {
   const timestamp = new Date().toISOString();
   return `${LOG_COLORS.dim}${timestamp}${LOG_COLORS.reset} ${
     LOG_LEVEL_COLORS[level]
-  }${level.toUpperCase()}${LOG_COLORS.reset} ${LOG_COLORS.bright}[${label}]:${
-    LOG_COLORS.reset
-  } ${message}`;
+  }${level.toUpperCase()}${LOG_COLORS.reset} ${LOG_COLORS.bright}[${label}]:${LOG_COLORS.reset} ${message}`;
 };
 
 export type LoggerClient = Record<LogLevel, (...params: LogHandlerParams) => void> & {
@@ -63,6 +56,7 @@ export function createLogger(options?: Logger): LoggerClient {
     const formattedMessage = formatMessage(level, message, label);
 
     if (!options || typeof options.log !== 'function') {
+      if (level === 'silent') return;
       if (level === 'error') {
         console.error(formattedMessage, ...args);
       } else if (level === 'warn') {
@@ -78,14 +72,11 @@ export function createLogger(options?: Logger): LoggerClient {
 
   return {
     ...(Object.fromEntries(
-      LogLevels.map((level) => [
-        level,
-        (...[message, ...args]: LogHandlerParams) => log(level, message, args),
-      ])
+      LogLevels.map(level => [level, (...[message, ...args]: LogHandlerParams) => log(level, message, args)]),
     ) as Record<LogLevel, (...params: LogHandlerParams) => void>),
     getLogLevel,
     setLogLevel,
-    child: (childOptions) =>
+    child: childOptions =>
       createLogger({
         ...options,
         ...childOptions,

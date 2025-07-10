@@ -1,34 +1,34 @@
 #!/usr/bin/env node
 
 import {boolean, run} from '@drizzle-team/brocli';
-import {createLogger} from './logger';
+import {createLogger, type LogLevel} from './logger';
 import {version as cliVersion, name as cliName, description as cliDescription} from '../package.json';
 import {convert} from './commands';
 
-export const logger = createLogger({label: 'cli', level: 'info'});
-
-const version = async () => {
-  const envVersion = cliVersion;
-  console.log(envVersion);
-};
+const DEFAULT_LOG_LEVEL: LogLevel = 'info';
+export const logger = createLogger({label: 'cli', level: DEFAULT_LOG_LEVEL});
 
 run([convert], {
   name: cliName,
   description: cliDescription,
-  version: version,
+  version: () => {
+    const envVersion = cliVersion;
+    console.log(envVersion);
+  },
   globals: {
     verbose: boolean('verbose').desc('Enable verbose output').default(false),
+    silent: boolean().desc('Enable silent mode. This will overrule verbose').default(false),
   },
   hook(event, _command, options) {
     switch (event) {
       case 'before':
-        if (options.verbose) {
-          logger.setLogLevel('debug'); // Set log level to debug if verbose is enabled
+        if (options.verbose || options.silent) {
+          logger.setLogLevel(options.verbose ? 'debug' : 'silent');
         }
         break;
 
       case 'after':
-        logger.setLogLevel('info'); // Set log level to default log level after command execution
+        logger.setLogLevel(DEFAULT_LOG_LEVEL); // Set log level to default log level after command execution
         break;
     }
   },

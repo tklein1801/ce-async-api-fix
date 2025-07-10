@@ -1,4 +1,4 @@
-import { type LogLevel } from './logger';
+import {type LogLevel} from './logger';
 
 export const LOG_COLORS = {
   reset: '\x1b[0m',
@@ -31,6 +31,7 @@ export const LOG_COLORS = {
 };
 
 export const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
+  silent: LOG_COLORS.fg.white,
   info: LOG_COLORS.fg.blue,
   warn: LOG_COLORS.fg.yellow,
   error: LOG_COLORS.fg.red,
