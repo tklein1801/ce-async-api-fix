@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import {boolean, run} from '@drizzle-team/brocli';
-import {createLogger, type LogLevel} from './logger';
+import {createLogger, LogLevel} from '@tklein1801/logger.js';
 import {version as cliVersion, name as cliName, description as cliDescription} from '../package.json';
-import {convert, forImport} from './commands';
+import {convert} from './commands/convert.cmd';
+import {forImport} from './commands/for-import.cmd';
 
-const DEFAULT_LOG_LEVEL: LogLevel = 'error';
-export const logger = createLogger({label: 'cli', level: DEFAULT_LOG_LEVEL});
+const DEFAULT_LOG_LEVEL: LogLevel = LogLevel.INFO;
+export const logger = createLogger({scope: 'cli', level: DEFAULT_LOG_LEVEL});
 
 run([convert, forImport], {
   name: cliName,
@@ -23,7 +24,7 @@ run([convert, forImport], {
     switch (event) {
       case 'before':
         if (options.verbose || options.silent) {
-          logger.setLogLevel(options.verbose ? 'debug' : 'silent');
+          logger.setLogLevel(options.verbose ? LogLevel.DEBUG : LogLevel.SILENT);
         }
         break;
 

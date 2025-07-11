@@ -1,7 +1,7 @@
-import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
+import {describe, test, expect, vi, beforeEach} from 'vitest';
 import {convertCmdHandler} from './convert.cmd';
 import fs from 'fs';
-import * as utils from '../utils';
+import * as utils from '../utils/writeOutput.util';
 import {logger} from '../cli';
 import {INPUT, OUTPUT} from '../test/data';
 

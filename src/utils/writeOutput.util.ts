@@ -14,5 +14,5 @@ export function writeOutput(content: string, outputPath: string): void {
   }
 
   fs.writeFileSync(outputPath, content, {encoding: 'utf8'});
-  logger.info('Output written to: ' + outputPath);
+  logger.info('Output written to: %s', outputPath);
 }

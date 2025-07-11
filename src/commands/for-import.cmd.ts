@@ -4,7 +4,7 @@ import path from 'path';
 import {logger} from '../cli';
 import {v2} from '../spec-types';
 import {ComponentNotFoundError, ReferenceNotSupportedError} from '../error';
-import {writeOutput} from '../utils';
+import {writeOutput} from '../utils/writeOutput.util';
 
 /**
  * @see - The [documentation](https://wiki.tchibo-intranet.de/x/eY-xOw) defines what changes need to be made to the AsyncAPI specification in order to be used for th generation of an Event Consumption Model
@@ -22,27 +22,26 @@ export const forImport = command({
     // Get file (check if file exists)
     const doesFileExists = fs.existsSync(options.input);
     if (!doesFileExists) {
-      logger.error(`File not found: ` + options.input);
+      logger.error('File not found: %s', options.input, {options});
       return;
     }
 
     const fileExtension = path.extname(options.input).toLowerCase();
-    logger.debug('File extension: ' + fileExtension);
+    logger.debug('File extension: %s', fileExtension);
 
     const file = fs.readFileSync(options.input, 'utf-8');
     // FIXME: Support YAML and YML
     if (fileExtension !== '.json' /*&& fileExtension !== '.yaml' && fileExtension !== '.yml'*/) {
       // logger.error('Unsupported file type: ' + fileExtension + '! Only JSON and YAML (or YML) are supported.');
-      logger.error('Unsupported file type: ' + fileExtension + '! Only JSON is supported.');
+      logger.error('Unsupported file type: %s! Only JSON is supported.', fileExtension);
       return;
     }
 
     let asyncApiObject = JSON.parse(file) as v2.AsyncAPIObject;
     if (asyncApiObject.asyncapi !== '2.0.0') {
       return logger.error(
-        'Unsupported AsyncAPI version: ' +
-          asyncApiObject.asyncapi +
-          '. This tool only supports AsyncAPI 2.0.0. You can export the schema for version 2.0.0 with the @tklein1801/ep-async-api-export CLI',
+        'Unsupported AsyncAPI version: %s. This tool only supports AsyncAPI 2.0.0. You can export the schema for version 2.0.0 with the @tklein1801/ep-async-api-export CLI',
+        asyncApiObject.asyncapi,
       );
     }
 
@@ -59,7 +58,7 @@ export const forImport = command({
     const messageKeys = Object.keys(messages);
     for (const msgName of messageKeys) {
       const path = ['components', 'messages', msgName];
-      logger.debug('Processing message: ' + msgName, {path: path.join('.')});
+      logger.debug('Processing message: %s', msgName, {path: path.join('.')});
 
       try {
         const msgObj = messages[msgName];
@@ -98,7 +97,7 @@ export const forImport = command({
     logger.info("Setting 'headers' for messages...");
     for (const msgName of messageKeys) {
       const path = ['components', 'messages', msgName];
-      logger.debug('Processing message: ' + msgName, {path: path.join('.')});
+      logger.debug('Processing message: %s', msgName, {path: path.join('.')});
 
       try {
         const msgObj = messages[msgName];
@@ -149,7 +148,7 @@ export const forImport = command({
     logger.info("Setting 'traits' for messages...");
     for (const msgName of messageKeys) {
       const path = ['components', 'messages', msgName];
-      logger.debug('Processing message: ' + msgName, {path: path.join('.')});
+      logger.debug('Processing message: %s', msgName, {path: path.join('.')});
 
       try {
         const msgObj = messages[msgName];
@@ -256,7 +255,7 @@ export const forImport = command({
     }
     for (const schemaName of Object.keys(schemas)) {
       const path = ['components', 'schemas', schemaName];
-      logger.debug('Processing schema: ' + schemaName, {path: path.join('.')});
+      logger.debug('Processing schema: %s', schemaName, {path: path.join('.')});
 
       try {
         let schema = schemas[schemaName];
@@ -268,7 +267,6 @@ export const forImport = command({
         }
 
         const schemaProperties = schema.properties;
-
         if (!schemaProperties) {
           logger.warn("Schema doesn't contain any properties!", {
             path: path.join('.'),

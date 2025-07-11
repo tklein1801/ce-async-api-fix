@@ -3,7 +3,7 @@ import {logger} from '../cli';
 import fs from 'fs';
 import path from 'path';
 import {v2, v3} from '../spec-types';
-import {writeOutput} from '../utils';
+import {writeOutput} from '../utils/writeOutput.util';
 import {ComponentNotFoundError} from '../error';
 
 const convertOptions = {
@@ -17,17 +17,17 @@ export async function convertCmdHandler(options: TypeOf<typeof convertOptions>) 
   // Get file (check if file exists)
   const doesFileExists = fs.existsSync(options.input);
   if (!doesFileExists) {
-    logger.error(`File not found: ` + options.input);
+    logger.error('File not found: %s', options.input);
     return;
   }
   const fileExtension = path.extname(options.input).toLowerCase();
-  logger.debug('File extension: ' + fileExtension);
+  logger.debug('File extension: %s', fileExtension);
 
   const file = fs.readFileSync(options.input, 'utf-8');
   // FIXME: Support YAML and YML
   if (fileExtension !== '.json' /*&& fileExtension !== '.yaml' && fileExtension !== '.yml'*/) {
     // logger.error('Unsupported file type: ' + fileExtension + '! Only JSON and YAML (or YML) are supported.');
-    logger.error('Unsupported file type: ' + fileExtension + '! Only JSON is supported.');
+    logger.error('Unsupported file type: %s! Only JSON is supported.', fileExtension);
     return;
   }
 
@@ -68,11 +68,11 @@ export async function convertCmdHandler(options: TypeOf<typeof convertOptions>) 
       logger.info('Processing schemas...');
       for (const schemaName of schemaNames) {
         if (options.ignoreSchema && new RegExp(options.ignoreSchema).test(schemaName)) {
-          logger.debug('Skipping schema: ' + schemaName, options);
+          logger.debug('Skipping schema: %s', schemaName);
           continue;
         }
 
-        logger.debug('Processing schema for: ' + schemaName);
+        logger.debug('Processing schema for: %s', schemaName);
         let updatedSchema = schemas[schemaName];
 
         // Wrap properties below data-node
@@ -107,7 +107,7 @@ export async function convertCmdHandler(options: TypeOf<typeof convertOptions>) 
     //   return;
 
     default:
-      logger.error('Unsupported file type: ' + fileExtension + '! Only JSON and YAML (or YML) are supported.');
+      logger.error('Unsupported file type: %s! Only JSON and YAML (or YML) are supported.', fileExtension);
       return;
   }
 
