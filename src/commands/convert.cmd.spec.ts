@@ -46,8 +46,7 @@ describe('Command: convert', () => {
       namespace: undefined,
     });
 
-    expect(mockedLogger.error).toHaveBeenCalledWith(expect.stringContaining('Unsupported file type'));
-    expect(mockedLogger.error).toHaveBeenCalledWith(expect.stringContaining('Only JSON is supported'));
+    expect(mockedLogger.error).toHaveBeenCalledWith('Unsupported file type: %s! Only JSON is supported.', '.yml');
   });
 
   test('it should transform the input JSON correctly', async () => {

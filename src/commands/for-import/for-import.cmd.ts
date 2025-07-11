@@ -1,10 +1,10 @@
 import {command, string} from '@drizzle-team/brocli';
 import fs from 'fs';
 import path from 'path';
-import {logger} from '../cli';
-import {v2} from '../spec-types';
-import {ComponentNotFoundError, ReferenceNotSupportedError} from '../error';
-import {writeOutput} from '../utils/writeOutput.util';
+import {logger} from '../../cli';
+import {v2} from '../../spec-types';
+import {ComponentNotFoundError, ReferenceNotSupportedError} from '../../error';
+import {writeOutput} from '../../utils/writeOutput.util';
 
 /**
  * @see - The [documentation](https://wiki.tchibo-intranet.de/x/eY-xOw) defines what changes need to be made to the AsyncAPI specification in order to be used for th generation of an Event Consumption Model
@@ -29,7 +29,7 @@ export const forImport = command({
     const fileExtension = path.extname(options.input).toLowerCase();
     logger.debug('File extension: %s', fileExtension);
 
-    const file = fs.readFileSync(options.input, 'utf-8');
+    const fileContents = fs.readFileSync(options.input, 'utf-8');
     // FIXME: Support YAML and YML
     if (fileExtension !== '.json' /*&& fileExtension !== '.yaml' && fileExtension !== '.yml'*/) {
       // logger.error('Unsupported file type: ' + fileExtension + '! Only JSON and YAML (or YML) are supported.');
@@ -37,12 +37,13 @@ export const forImport = command({
       return;
     }
 
-    let asyncApiObject = JSON.parse(file) as v2.AsyncAPIObject;
+    let asyncApiObject = JSON.parse(fileContents) as v2.AsyncAPIObject;
     if (asyncApiObject.asyncapi !== '2.0.0') {
-      return logger.error(
+      logger.error(
         'Unsupported AsyncAPI version: %s. This tool only supports AsyncAPI 2.0.0. You can export the schema for version 2.0.0 with the @tklein1801/ep-async-api-export CLI',
         asyncApiObject.asyncapi,
       );
+      return;
     }
 
     /**
@@ -53,7 +54,8 @@ export const forImport = command({
     logger.info("Retrieving and setting 'name' for messages...");
     const messages = asyncApiObject.components?.messages;
     if (!messages) {
-      return logger.error(new ComponentNotFoundError('messages', 'components').toString());
+      logger.error(new ComponentNotFoundError('messages', 'components').toString());
+      return;
     }
     const messageKeys = Object.keys(messages);
     for (const msgName of messageKeys) {
@@ -275,9 +277,15 @@ export const forImport = command({
           continue;
         }
 
-        const schemaData = schemaProperties.data;
-        // @ts-expect-error
-        schema.properties = schemaData;
+        const ceData = schemaProperties.data;
+        if (typeof ceData != 'object') {
+          throw new Error('Node data of the schema properties are not an object');
+        }
+        const ceRequiredFields = ceData.required || [];
+        const ceDataProperties = ceData?.properties;
+
+        schema.required = ceRequiredFields;
+        schema.properties = ceDataProperties;
       } catch (e) {
         if (e instanceof ReferenceNotSupportedError || e instanceof ComponentNotFoundError) {
           logger.warn(e.message + ' Skipping...');
@@ -285,8 +293,94 @@ export const forImport = command({
         } else logger.error(e instanceof Error ? e.message : String(e), e);
       }
     }
-
     logger.info('Removed CloudEvent context around the message payload!');
+
+    /**
+     * 7. Extract all objects with `type: "object"` properties and add them to the `components.schemas` object.
+     *.   This will split up the previous main schema into multiple schemas. Then a `$ref` will to the according schema attribute.
+     */
+    // FIXME: Change log message
+    logger.info('Extracting all objects with "type: object" properties and adding them to components.schemas...');
+    for (const schemaName of Object.keys(schemas)) {
+      const path = ['components', 'schemas', schemaName];
+      logger.debug('Processing schema: %s', schemaName, {path: path.join('.')});
+
+      try {
+        let schema = schemas[schemaName];
+        if (typeof schema != 'object' || !schema) {
+          throw new Error('Schema ' + schemaName + ' is not an object or is undefined.');
+        }
+        if (typeof schema == 'object' && '$ref' in schema) {
+          throw new ReferenceNotSupportedError(path.join('.'));
+        }
+
+        const schemaProperties = schema.properties;
+        if (!schemaProperties) {
+          logger.warn("Schema doesn't contain any properties!", {path: path.join('.'), schema: schemaName});
+          continue;
+        }
+
+        // Prüfen ob das Schema ein Attribut hat, welches kein simpler Typ ist.
+        // Sollte das Attribut ein Array hat, dessen Inhalt aber ein Objekt ist, dann wird das Attribut in ein neues Schema extrahiert.
+        // FIXME: Implement recursive extraction of objects
+        // console.dir(schemaProperties, {depth: null});
+        for (const [propertyName, property] of Object.entries(schemaProperties)) {
+          const propertyPath = [...path, 'properties', propertyName].join('.');
+          let logMeta = {
+            path: path.join('.'),
+            schema: schemaName,
+            property: propertyName,
+          };
+          logger.debug('Processing property: %s', propertyPath, logMeta);
+          if (typeof property != 'object' || !property) {
+            logger.warn('Property %s is not an object or is undefined. Skipping...', propertyPath, logMeta);
+            continue;
+          }
+          const propertyType = property.type;
+          // console.log(propertyName, property);
+          if (!propertyType) {
+            logger.warn('Property %s has no type defined. Skipping...', propertyPath, logMeta);
+            continue;
+          }
+
+          if (propertyType === 'array') {
+            logger.info('Property %s is an array. Checking if items are objects...', propertyPath, logMeta);
+            // console.log(property);
+            let items = property.items;
+            if (typeof items !== 'object' || !items) {
+              logger.warn('Property %s is an array, but items are not an object. Skipping...', propertyPath, logMeta);
+              continue;
+            }
+
+            if ('$ref' in items) {
+              throw new ReferenceNotSupportedError(
+                ['components', 'schemas', schemaName, 'properties', propertyName, 'items'].join('.'),
+              );
+            }
+
+            // Create new schema for the `items` property and add it to the `components.schemas` object
+            // Then replace the `items` property with a `$ref` to the new schema
+            const newItemsSchemaName = `${schemaName}_${propertyName}_Items_${getTimestamp()}`;
+            const reference = `#/components/schemas/${newItemsSchemaName}`;
+            // Assign the new schema with the items-object to the components.schemas object
+            Object.assign(schemas, {[newItemsSchemaName]: items});
+
+            // Replace the current items-object with the reference to the previously created schema
+            (schema.properties![propertyName] as v2.AsyncAPISchemaDefinition).items = {$ref: reference};
+            // console.log(newItemsSchemaName, items);
+          } else logger.debug('Property %s is not an array. Skipping...', propertyPath, logMeta);
+        }
+      } catch (e) {
+        if (e instanceof ReferenceNotSupportedError) {
+          logger.warn(e.message + ' Skipping...');
+          continue;
+        } else logger.error(e instanceof Error ? e.message : String(e), e);
+      }
+    }
+
+    // console.log(asyncApiObject.components?.schemas);
+
+    logger.info("Split up schemas with 'type: object' properties...");
 
     writeOutput(JSON.stringify(asyncApiObject), options.output);
   },
@@ -336,4 +430,31 @@ function getMessageName(
   }
 
   return schema.properties.type.const as string;
+}
+
+/**
+ *
+ * @returns A timestamp in the format YYYYMMDDHHMMSS
+ */
+function getTimestamp(): string {
+  return new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}Z$/, '')
+    .replace(/T/, '');
+}
+
+/**
+ * Assigns a description to the AsyncAPI document.
+ *
+ * @param asyncApiObject - The AsyncAPI object to modify.
+ * @param description - The description to assign.
+ * @returns The modified AsyncAPI object with the description assigned.
+ */
+export function assignDescription(asyncApiObject: v2.AsyncAPIObject, description: string): v2.AsyncAPIObject {
+  if (!asyncApiObject.info) {
+    throw new Error('AsyncAPI object does not contain an info object. Cannot assign description.');
+  }
+  asyncApiObject.info.description = description;
+  return asyncApiObject;
 }

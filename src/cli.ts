@@ -4,7 +4,7 @@ import {boolean, run} from '@drizzle-team/brocli';
 import {createLogger, LogLevel} from '@tklein1801/logger.js';
 import {version as cliVersion, name as cliName, description as cliDescription} from '../package.json';
 import {convert} from './commands/convert.cmd';
-import {forImport} from './commands/for-import.cmd';
+import {forImport} from './commands/for-import';
 
 const DEFAULT_LOG_LEVEL: LogLevel = LogLevel.INFO;
 export const logger = createLogger({scope: 'cli', level: DEFAULT_LOG_LEVEL});
