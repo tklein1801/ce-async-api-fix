@@ -275,9 +275,15 @@ export const forImport = command({
           continue;
         }
 
-        const schemaData = schemaProperties.data;
-        // @ts-expect-error
-        schema.properties = schemaData;
+        const ceData = schemaProperties.data;
+        if (typeof ceData != 'object') {
+          throw new Error('Node data of the schema properties are not an object');
+        }
+        const ceRequiredFields = ceData.required || [];
+        const ceDataProperties = ceData?.properties;
+
+        schema.required = ceRequiredFields;
+        schema.properties = ceDataProperties;
       } catch (e) {
         if (e instanceof ReferenceNotSupportedError || e instanceof ComponentNotFoundError) {
           logger.warn(e.message + ' Skipping...');
@@ -285,8 +291,82 @@ export const forImport = command({
         } else logger.error(e instanceof Error ? e.message : String(e), e);
       }
     }
-
     logger.info('Removed CloudEvent context around the message payload!');
+
+    /**
+     * 7. Extract all objects with `type: "object"` properties and add them to the `components.schemas` object.
+     *.   This will split up the previous main schema into multiple schemas. Then a `$ref` will to the according schema attribute.
+     */
+    // FIXME: Change log message
+    logger.info('Extracting all objects with "type: object" properties and adding them to components.schemas...');
+    for (const schemaName of Object.keys(schemas)) {
+      const path = ['components', 'schemas', schemaName];
+      logger.debug('Processing schema: %s', schemaName, {path: path.join('.')});
+
+      try {
+        let schema = schemas[schemaName];
+        if (typeof schema != 'object' || !schema) {
+          throw new Error('Schema ' + schemaName + ' is not an object or is undefined.');
+        }
+        if (typeof schema == 'object' && '$ref' in schema) {
+          throw new ReferenceNotSupportedError(path.join('.'));
+        }
+
+        const schemaProperties = schema.properties;
+        if (!schemaProperties) {
+          logger.warn("Schema doesn't contain any properties!", {path: path.join('.'), schema: schemaName});
+          continue;
+        }
+
+        // Prüfen ob das Schema ein Attribut hat, welches kein simpler Typ ist.
+        // Sollte das Attribut ein Array hat, dessen Inhalt aber ein Objekt ist, dann wird das Attribut in ein neues Schema extrahiert.
+        // FIXME: Implement recursive extraction of objects
+        // console.dir(schemaProperties, {depth: null});
+        for (const [propertyName, property] of Object.entries(schemaProperties)) {
+          const propertyPath = [...path, 'properties', propertyName].join('.');
+          let logMeta = {
+            path: path.join('.'),
+            schema: schemaName,
+            property: propertyName,
+          };
+          logger.debug('Processing property: %s', propertyPath, logMeta);
+          if (typeof property != 'object' || !property) {
+            logger.warn('Property %s is not an object or is undefined. Skipping...', propertyPath, logMeta);
+            continue;
+          }
+          const propertyType = property.type;
+          // console.log(propertyName, property);
+          if (!propertyType) {
+            logger.warn('Property %s has no type defined. Skipping...', propertyPath, logMeta);
+            continue;
+          }
+
+          if (propertyType === 'array') {
+            logger.info('Property %s is an array. Checking if items are objects...', propertyPath, logMeta);
+            console.log(property);
+            const items = property.items;
+            if (typeof items !== 'object' || !items) {
+              logger.warn('Property %s is an array, but items are not an object. Skipping...', propertyPath, logMeta);
+              continue;
+            }
+
+            if ('$ref' in items) {
+              logger.warn(
+                new ReferenceNotSupportedError(
+                  ['components', 'schemas', schemaName, 'properties', propertyName, 'items'].join('.'),
+                ).toString(),
+                logMeta,
+              );
+              continue;
+            }
+
+            const itemType = (items as v2.AsyncAPISchemaDefinition).type;
+            console.log('Item type:', itemType);
+          } else logger.debug('Property %s is not an array. Skipping...', propertyPath, logMeta);
+        }
+      } catch (e) {}
+    }
+    logger.info("Split up schemas with 'type: object' properties...");
 
     writeOutput(JSON.stringify(asyncApiObject), options.output);
   },
@@ -336,4 +416,19 @@ function getMessageName(
   }
 
   return schema.properties.type.const as string;
+}
+
+function resolveReference(asyncApiDocument: v2.AsyncAPIObject, reference: string): any {
+  const parts = reference.split('/');
+  let current: any = asyncApiDocument;
+
+  for (const part of parts) {
+    if (current[part]) {
+      current = current[part];
+    } else {
+      throw new Error('Reference not found: ' + reference);
+    }
+  }
+
+  return current;
 }

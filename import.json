@@ -1,0 +1,248 @@
+{
+  "asyncapi": "2.0.0",
+  "info": {
+    "title": "EUDR Osapiens Assessment Events",
+    "version": "0.1.0",
+    "description": "This service provides integration with Osapiens for EUDR compliance assessment data. It publishes events when assessment statuses change and allows subscribers to receive real-time updates on product compliance evaluations."
+  },
+  "components": {
+    "schemas": {
+      "EudrOsapiensAssessment": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "required": ["readableId", "domain", "complianceStatus", "euDdsList", "productList"],
+        "type": "object",
+        "properties": {
+          "readableId": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "complianceStatus": {
+            "type": "string",
+            "enum": ["compliant", "not-compliant", "unknown"]
+          },
+          "euDdsList": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["euDdsId", "euDdsVerificationCode", "euDdsIssueDate"],
+              "properties": {
+                "euDdsId": {
+                  "type": "string"
+                },
+                "euDdsVerificationCode": {
+                  "type": "string"
+                },
+                "euDdsIssueDate": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "productList": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductData"
+            }
+          }
+        }
+      },
+      "ProductData": {
+        "type": "object",
+        "required": [
+          "itemKey",
+          "productId",
+          "cnCode",
+          "eudrCommodityCodes",
+          "supplierBusinessPartnerId",
+          "countriesOfProduction"
+        ],
+        "properties": {
+          "itemKey": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productId": {
+            "type": "string"
+          },
+          "cnCode": {
+            "type": "string"
+          },
+          "eudrCommodityCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["cattle", "cocoa", "coffee", "palmoil", "rubber", "soya", "wood"]
+            }
+          },
+          "supplierBusinessPartnerId": {
+            "type": "string"
+          },
+          "countriesOfProduction": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceData"
+            }
+          },
+          "suppliedEuDdsList": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuppliedEuDdsData"
+            }
+          }
+        }
+      },
+      "ReferenceData": {
+        "type": "object",
+        "required": [
+          "itemKey",
+          "productId",
+          "cnCode",
+          "eudrCommodityCodes",
+          "supplierBusinessPartnerId",
+          "countriesOfProduction"
+        ],
+        "properties": {
+          "documentType": {
+            "type": "string",
+            "enum": ["1", "2", "4", "6", "7", "99"]
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "documentItemId": {
+            "type": "string"
+          },
+          "isPrimary": {
+            "type": "string",
+            "enum": ["true", "false"]
+          }
+        }
+      },
+      "SuppliedEuDdsData": {
+        "type": "object",
+        "required": ["euDdsId", "euDdsVerificationCode"],
+        "properties": {
+          "euDdsId": {
+            "type": "string"
+          },
+          "euDdsVerificationCode": {
+            "type": "string"
+          },
+          "euDdsIssueDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "messages": {
+      "EudrOsapiensAssessmentChanged": {
+        "name": "com.tchibo.sustainability.eudr.osapiensAssessment.changed.v1",
+        "description": "This event is triggered when an Osapiens assessment for EUDR compliance changes",
+        "headers": {
+          "properties": {
+            "type": {
+              "const": "com.tchibo.sustainability.eudr.osapiensAssessment.changed.v1",
+              "type": "string"
+            },
+            "source": {
+              "const": "if.osa.jms.assessment.publish",
+              "type": "string"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            }
+          }
+        },
+        "traits": [
+          {
+            "$ref": "#/components/messageTraits/CloudEventContext"
+          }
+        ],
+        "payload": {
+          "$ref": "#/components/schemas/EudrOsapiensAssessment"
+        },
+        "schemaFormat": "application/vnd.aai.asyncapi+json;version=2.0.0",
+        "contentType": "application/json"
+      }
+    },
+    "messageTraits": {
+      "CloudEventContext": {
+        "headers": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Identifies the event.",
+              "type": "string"
+            },
+            "source": {
+              "description": "Identifies the context in which an event happened.",
+              "type": "string"
+            },
+            "specversion": {
+              "description": "The version of the CloudEvents specification which the event uses.",
+              "const": "1.0.0",
+              "type": "string"
+            },
+            "type": {
+              "description": "Describes the type of event related to the originating occurrence.",
+              "type": "string",
+              "examples": ["com.tchibo.<lob>.<process>.<objectType>.<verb>.<version>"]
+            },
+            "datacontenttype": {
+              "description": "Content type of the data value. Must adhere to RFC 2046 format.",
+              "type": "string"
+            },
+            "subject": {
+              "description": "Describes the subject of the event in the context of the event producer (identified by source).",
+              "type": "string"
+            },
+            "time": {
+              "description": "Timestamp of when the occurrence happened. Must adhere to RFC 3339.",
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  },
+  "channels": {
+    "tchibo/sustainability/assessment/changed/v1/{readableId}/{domain}/{complianceStatus}": {
+      "subscribe": {
+        "message": {
+          "$ref": "#/components/messages/EudrOsapiensAssessmentChanged"
+        }
+      },
+      "parameters": {
+        "domain": {
+          "schema": {
+            "type": "string"
+          }
+        },
+        "readableId": {
+          "schema": {
+            "type": "string"
+          }
+        },
+        "complianceStatus": {
+          "schema": {
+            "type": "string",
+            "enum": ["compliant", "not-compliant", "unknown"]
+          }
+        }
+      }
+    }
+  }
+}
