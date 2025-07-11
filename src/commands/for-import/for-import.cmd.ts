@@ -1,10 +1,11 @@
 import {command, string} from '@drizzle-team/brocli';
 import fs from 'fs';
 import path from 'path';
-import {logger} from '../cli';
-import {v2} from '../spec-types';
-import {ComponentNotFoundError, ReferenceNotSupportedError} from '../error';
-import {writeOutput} from '../utils/writeOutput.util';
+import {logger} from '../../cli';
+import {v2} from '../../spec-types';
+import {ComponentNotFoundError, ReferenceNotSupportedError} from '../../error';
+import {writeOutput} from '../../utils/writeOutput.util';
+import assert from 'assert';
 
 /**
  * @see - The [documentation](https://wiki.tchibo-intranet.de/x/eY-xOw) defines what changes need to be made to the AsyncAPI specification in order to be used for th generation of an Event Consumption Model
@@ -29,7 +30,7 @@ export const forImport = command({
     const fileExtension = path.extname(options.input).toLowerCase();
     logger.debug('File extension: %s', fileExtension);
 
-    const file = fs.readFileSync(options.input, 'utf-8');
+    const fileContents = fs.readFileSync(options.input, 'utf-8');
     // FIXME: Support YAML and YML
     if (fileExtension !== '.json' /*&& fileExtension !== '.yaml' && fileExtension !== '.yml'*/) {
       // logger.error('Unsupported file type: ' + fileExtension + '! Only JSON and YAML (or YML) are supported.');
@@ -37,12 +38,13 @@ export const forImport = command({
       return;
     }
 
-    let asyncApiObject = JSON.parse(file) as v2.AsyncAPIObject;
+    let asyncApiObject = JSON.parse(fileContents) as v2.AsyncAPIObject;
     if (asyncApiObject.asyncapi !== '2.0.0') {
-      return logger.error(
+      logger.error(
         'Unsupported AsyncAPI version: %s. This tool only supports AsyncAPI 2.0.0. You can export the schema for version 2.0.0 with the @tklein1801/ep-async-api-export CLI',
         asyncApiObject.asyncapi,
       );
+      return;
     }
 
     /**
@@ -53,7 +55,8 @@ export const forImport = command({
     logger.info("Retrieving and setting 'name' for messages...");
     const messages = asyncApiObject.components?.messages;
     if (!messages) {
-      return logger.error(new ComponentNotFoundError('messages', 'components').toString());
+      logger.error(new ComponentNotFoundError('messages', 'components').toString());
+      return;
     }
     const messageKeys = Object.keys(messages);
     for (const msgName of messageKeys) {
@@ -239,9 +242,7 @@ export const forImport = command({
      * 5. Add an description to the `info`-object
      */
     logger.info('Setting description for the Async API document...');
-    Object.assign(asyncApiObject.info, {
-      description: options.description,
-    });
+    asyncApiObject = assignDescription(asyncApiObject, options.description);
     logger.info('Description for the Async API document set!');
 
     /**
@@ -275,22 +276,126 @@ export const forImport = command({
           continue;
         }
 
-        const schemaData = schemaProperties.data;
-        // @ts-expect-error
-        schema.properties = schemaData;
+        const ceData = schemaProperties.data;
+        if (typeof ceData != 'object') {
+          throw new Error('Node data of the schema properties are not an object');
+        }
+        const ceRequiredFields = ceData.required || [];
+        const ceDataProperties = ceData?.properties;
+
+        schema.required = ceRequiredFields;
+        schema.properties = ceDataProperties;
       } catch (e) {
         if (e instanceof ReferenceNotSupportedError || e instanceof ComponentNotFoundError) {
           logger.warn(e.message + ' Skipping...');
           continue;
-        } else logger.error(e instanceof Error ? e.message : String(e), e);
+        }
+        logger.error(e instanceof Error ? e.message : String(e), e);
+        process.exit(1);
       }
     }
-
     logger.info('Removed CloudEvent context around the message payload!');
+
+    /**
+     * 7. splitting of all schemas that have a property that is not a simple type.
+     * This means that all arrays (or items) and objects must be split into individual schemas.
+     * For the schema definition that is then created, the corresponding references in the existing schema must be updated.
+     * The splitting takes place recursively until all properties are simple types.
+     */
+    logger.info('Splitting up schemas with complex properties...');
+    asyncApiObject = splitSchemas(asyncApiObject);
+    logger.info('Split up schemas with complex properties...');
 
     writeOutput(JSON.stringify(asyncApiObject), options.output);
   },
 });
+
+/**
+ * Splits schemas with complex properties into individual schemas.
+ * @param asyncApiDocument The AsyncAPI document to process.
+ * @returns The processed AsyncAPI document with split schemas.
+ */
+export function splitSchemas(asyncApiDocument: v2.AsyncAPIObject): v2.AsyncAPIObject {
+  const schemas = asyncApiDocument.components!.schemas!;
+
+  for (const [schemaName, schemaDef] of Object.entries(schemas)) {
+    schemas[schemaName] = extract(schemaDef, schemaName);
+  }
+
+  return asyncApiDocument;
+
+  function extract(schema: v2.SchemaObject, parentSchemaKey: string): v2.SchemaObject {
+    if (!schema || typeof schema != 'object') return schema;
+    // TODO: Implement support for references
+    if ('$ref' in schema) {
+      logger.warn('Reference found in schema %s: %o', parentSchemaKey, schema.$ref);
+      return schema;
+    }
+
+    // For a schema with properties:
+    if (schema.type == 'object' && schema.properties) {
+      const newProps: v2.SchemaObject = {};
+      for (const [key, value] of Object.entries(schema.properties)) {
+        // When value is an object
+        if (value && typeof value == 'object') {
+          if (value.type == 'object' && value.properties) {
+            // 1. Object
+            const newSchemaName = `${parentSchemaKey}_${key}_${getTimestamp()}`;
+            schemas[newSchemaName] = extract(value, newSchemaName);
+            newProps[key] = refFor(newSchemaName);
+          } else if (
+            value.type == 'array' &&
+            value.items &&
+            // FIXME: Remove cast
+            (value.items as v2.AsyncAPISchemaDefinition).type == 'object'
+          ) {
+            // 2. Array of objects
+            const newSchemaName = `${parentSchemaKey}_${key}_${getTimestamp()}`;
+            schemas[newSchemaName] = extract(value.items, newSchemaName);
+            newProps[key] = {type: 'array', items: refFor(newSchemaName)};
+          } else {
+            // 3. Nested constructs in arrays TODO: (allOf, anyOf, etc. could be added if needed)
+            newProps[key] = extract(value, `${parentSchemaKey}_${key}_${getTimestamp()}`);
+          }
+        } else {
+          newProps[key] = value;
+        }
+      }
+
+      // Return the new schema with updated properties
+      return {...schema, properties: newProps};
+    }
+
+    // Process arrays
+    // Only process the items if they are objects
+    // FIXME: Remove cast
+    const schemaItems = schema.items as v2.AsyncAPISchemaDefinition | undefined;
+    if (schema.type == 'array' && schemaItems && schemaItems.type == 'object') {
+      if (schemaItems.type === 'object' && schemaItems.properties) {
+        // Already handled in above
+        return schema;
+      } else {
+        // TODO:
+        // For possible further nesting
+        return {...schema, items: extract(schemaItems, parentSchemaKey + '_Item')};
+      }
+    }
+
+    return schema;
+  }
+}
+
+export type ReferencePath = `#/components/schemas/${string}`;
+
+/**
+ * Creates a JSON reference for a schema.
+ * This function is used to create a reference to a schema in the AsyncAPI document.
+ * @param name - The name of the schema to reference.
+ * @returns A JSON reference object for the schema.
+ */
+export function refFor(name: string): {$ref: ReferencePath} {
+  return {$ref: `#/components/schemas/${name}`};
+}
 
 function getMessageName(
   asnycApiSpec: v2.AsyncAPIObject,
@@ -336,4 +441,31 @@ function getMessageName(
   }
 
   return schema.properties.type.const as string;
+}
+
+/**
+ *
+ * @returns A timestamp in the format YYYYMMDDHHMMSS
+ */
+function getTimestamp(): string {
+  return new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}Z$/, '')
+    .replace(/T/, '');
+}
+
+/**
+ * Assigns a description to the AsyncAPI document.
+ *
+ * @param asyncApiObject - The AsyncAPI object to modify.
+ * @param description - The description to assign.
+ * @returns The modified AsyncAPI object with the description assigned.
+ */
+export function assignDescription(asyncApiObject: v2.AsyncAPIObject, description: string): v2.AsyncAPIObject {
+  if (!asyncApiObject.info) {
+    throw new Error('AsyncAPI object does not contain an info object. Cannot assign description.');
+  }
+  asyncApiObject.info.description = description;
+  return asyncApiObject;
 }

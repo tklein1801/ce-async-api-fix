@@ -1,7 +1,14 @@
 export class ReferenceNotSupportedError extends Error {
-  constructor(path: string) {
-    super(`Reference at "${path}" is not supported. Please use a direct schema object instead.`);
+  private readonly path: string;
+  constructor(path: string | string[]) {
+    const _path: string = Array.isArray(path) ? path.join('.') : path;
+    super(`Reference at "${_path}" is not supported. Please use a direct schema object instead.`);
+    this.path = _path;
     this.name = 'ReferenceNotSupportedError';
+  }
+
+  getPath() {
+    return this.path;
   }
 
   toString() {
