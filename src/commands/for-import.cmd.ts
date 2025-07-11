@@ -240,7 +240,7 @@ export const forImport = command({
      */
     logger.info('Setting description for the Async API document...');
     Object.assign(asyncApiObject.info, {
-      description: 'Description for the Async API document',
+      description: options.description,
     });
     logger.info('Description for the Async API document set!');
 
