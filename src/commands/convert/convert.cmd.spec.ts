@@ -1,9 +1,9 @@
-import {describe, test, expect, vi, beforeEach} from 'vitest';
+import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
 import {convertCmdHandler} from './convert.cmd';
 import fs from 'fs';
-import * as utils from '../utils/writeOutput.util';
-import {logger} from '../cli';
-import {INPUT, OUTPUT} from '../test/data';
+import * as utils from '../../utils';
+import {logger} from '../../cli';
+import {INPUT, OUTPUT} from '../../test/data';
 
 const validInputJson = INPUT;
 const expectedOutputJson = OUTPUT;
@@ -11,8 +11,8 @@ const expectedOutputJson = OUTPUT;
 const inputJsonString = JSON.stringify(validInputJson, null, 2);
 
 vi.mock('fs');
-vi.mock('../utils');
-vi.mock('../cli', async () => {
+vi.mock('../../utils');
+vi.mock('../../cli', async () => {
   // Provide the logger with mocked methods
   return {
     logger: {

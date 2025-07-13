@@ -1,10 +1,10 @@
 import {command, string, TypeOf} from '@drizzle-team/brocli';
-import {logger} from '../cli';
+import {logger} from '../../cli';
 import fs from 'fs';
 import path from 'path';
-import {v2, v3} from '../spec-types';
-import {writeOutput} from '../utils/writeOutput.util';
-import {ComponentNotFoundError} from '../error';
+import {v2, v3} from '../../spec-types';
+import {writeOutput} from '../../utils';
+import {ComponentNotFoundError} from '../../error';
 
 const convertOptions = {
   input: string().alias('in').desc('Path to the AsyncAPI specification file').required(),
