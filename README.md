@@ -1,6 +1,6 @@
 # ep-async-api-fix
 
-![CI](https://ci.tools.tklein.it/api/v1/teams/main/pipelines/ce-async-api-fix/badge)
+[![CI](https://ci.tools.tklein.it/api/v1/teams/main/pipelines/ce-async-api-fix/badge)](https://ci.tools.tklein.it/teams/main/pipelines/ce-async-api-fix?group=all)
 ![NPM Version](https://img.shields.io/npm/v/%40tklein1801%2Fce-async-api-fix)
 ![NPM License](https://img.shields.io/npm/l/%40tklein1801%2Fce-async-api-fix)
 ![NPM Last Update](https://img.shields.io/npm/last-update/%40tklein1801%2Fce-async-api-fix)
