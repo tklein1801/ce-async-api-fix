@@ -7,6 +7,9 @@
 
 ## Getting started
 
+> [!IMPORTANT]
+> This tool was not built to perform generic conversions on AsyncAPI documents. Rather, this tool was created to solve specific problems that arose when working with AsyncAPI documents in connection with SAP AEM/Solace PubSub+ and the SAP Event Enablement Framework. Before using this tool, it is recommended to check whether it also performs the desired/required adjustments.
+
 ### Use the tool
 
 ```bash
@@ -328,6 +331,16 @@ The `for-import` command can be used to prepare an AsyncAPI specification versio
 
 > [!TIP]
 > For more informations about the command you can run `npx @tklein1801/ce-async-api-fix for-import --help`
+
+## Improvements
+
+The following aspects offer further potential for improving the tool:
+
+- **Test coverage:** there is still a need for optimization, particularly in the area of conversion and modification of schemas. More comprehensive test coverage ensures greater security and stability in the further development of the tool.
+
+- **Resolving references:** Currently, objects that are referenced according to the `v2.ReferenceObject` schema are not supported in many cases. The aim is to be able to resolve such references reliably and correctly.
+
+- **Documentation:** The documentation should describe more clearly and in more detail which use cases are supported by the tool and which assumptions are made in order to be able to successfully modify AsyncAPI documents.
 
 ## Credits
 
