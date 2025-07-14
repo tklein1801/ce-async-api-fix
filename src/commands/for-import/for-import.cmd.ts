@@ -77,7 +77,9 @@ export const forImport = command({
         if (e instanceof ReferenceNotSupportedError || e instanceof ComponentNotFoundError) {
           logger.warn(e.message + ' Skipping...');
           continue;
-        } else logger.error(e instanceof Error ? e.message : String(e), e);
+        }
+        logger.error(e instanceof Error ? e.message : String(e), e);
+        process.exit(1);
       }
     }
     logger.info("Set 'name' for messages!");
@@ -133,7 +135,9 @@ export const forImport = command({
         if (e instanceof ReferenceNotSupportedError) {
           logger.warn(e.message + ' Skipping...');
           continue;
-        } else logger.error(e instanceof Error ? e.message : String(e), e);
+        }
+        logger.error(e instanceof Error ? e.message : String(e), e);
+        process.exit(1);
       }
     }
     logger.info('Headers for messages set!');
@@ -175,7 +179,9 @@ export const forImport = command({
         if (e instanceof ReferenceNotSupportedError) {
           logger.warn(e.message + ' Skipping...');
           continue;
-        } else logger.error(e instanceof Error ? e.message : String(e), e);
+        }
+        logger.error(e instanceof Error ? e.message : String(e), e);
+        process.exit(1);
       }
     }
     logger.info('Traits for messages set!');
