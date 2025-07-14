@@ -6,7 +6,7 @@ tsconfig.json
 .prettierrc
 
 # Ignore test related stuff...
-lib/src/test/
+lib/test/
 *.spec.*
 *.test.*
 vitest.config.ts
