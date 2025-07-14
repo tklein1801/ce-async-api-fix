@@ -1,7 +1,7 @@
 export class ComponentNotFoundError extends Error {
   constructor(
     componentName: string,
-    componentType?: 'schema' | 'message' | 'channel' | 'components' | 'messageTraits',
+    componentType?: 'AsyncApiDocument' | 'schema' | 'message' | 'channel' | 'components' | 'messageTraits',
   ) {
     super(
       componentType
