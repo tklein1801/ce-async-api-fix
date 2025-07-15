@@ -529,7 +529,7 @@ function applyCustomModificationToSchema(schema: v2.SchemaObject): v2.SchemaObje
       break;
 
     case 'integer':
-      schema.format = 'int32';
+      schema.format = 'int64';
       break;
 
     case 'number':
