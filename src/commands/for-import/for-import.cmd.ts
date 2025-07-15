@@ -5,7 +5,6 @@ import {logger} from '../../cli';
 import {v2} from '../../spec-types';
 import {ComponentNotFoundError, ReferenceNotSupportedError} from '../../error';
 import {writeOutput} from '../../utils/writeOutput.util';
-import assert from 'assert';
 
 /**
  * @see - The [documentation](https://wiki.tchibo-intranet.de/x/eY-xOw) defines what changes need to be made to the AsyncAPI specification in order to be used for th generation of an Event Consumption Model
@@ -303,7 +302,7 @@ export const forImport = command({
     logger.info('Removed CloudEvent context around the message payload!');
 
     /**
-     * 7. splitting of all schemas that have a property that is not a simple type.
+     * 7. Splitting of all schemas that have a property that is not a simple type.
      * This means that all arrays (or items) and objects must be split into individual schemas.
      * For the schema definition that is then created, the corresponding references in the existing schema must be updated.
      * The splitting takes place recursively until all properties are simple types.
@@ -311,6 +310,16 @@ export const forImport = command({
     logger.info('Splitting up schemas with complex properties...');
     asyncApiObject = splitSchemas(asyncApiObject);
     logger.info('Split up schemas with complex properties...');
+
+    /**
+     * 8. Processing attributes recursively and applying custom modifications to schemas.
+     * This includes:
+     * `"type": "integer"` -> `"type": "integer"`, `"format": "int32"`
+     * `"type": "number"` -> `"type": "number"`, `"format": "decimal"`
+     */
+    logger.info('Processing attributes recursively and adding format to types of integer and number...');
+    asyncApiObject = applyCustomModificationToSchemas(asyncApiObject);
+    logger.info('Processed attributes recursively and added format to types of integer and number!');
 
     writeOutput(JSON.stringify(asyncApiObject), options.output);
   },
@@ -332,9 +341,9 @@ export function splitSchemas(asyncApiDocument: v2.AsyncAPIObject): v2.AsyncAPIOb
 
   function extract(schema: v2.SchemaObject, parentSchemaKey: string): v2.SchemaObject {
     if (!schema || typeof schema != 'object') return schema;
-    // TODO: Implement support for references
     if ('$ref' in schema) {
-      logger.warn('Reference found in schema %s: %o', parentSchemaKey, schema.$ref);
+      // If it's a reference, we don't need to process it
+      // Because we will resolve it later (if it is located in the same document under `components.schemas`)
       return schema;
     }
 
@@ -474,4 +483,65 @@ export function assignDescription(asyncApiObject: v2.AsyncAPIObject, description
   }
   asyncApiObject.info.description = description;
   return asyncApiObject;
+}
+
+/**
+ * Applies custom modifications to schemas in the AsyncAPI document.
+ * @param asyncApiDocument - The AsyncAPI document to process.
+ * Applies custom modifications to schemas in the AsyncAPI document.
+ * @returns The modified AsyncAPI document with custom modifications applied.
+ */
+function applyCustomModificationToSchemas(asyncApiDocument: v2.AsyncAPIObject): v2.AsyncAPIObject {
+  const schemas = asyncApiDocument.components!.schemas!;
+
+  for (const [schemaName, schemaDef] of Object.entries(schemas)) {
+    schemas[schemaName] = applyCustomModificationToSchema(schemaDef);
+  }
+
+  return asyncApiDocument;
+}
+
+/**
+ * Applies custom modifications to a schema.
+ * @param schema - The schema to apply custom modifications to.
+ * Applies custom modifications to a schema, such as setting formats for integer and number types.
+ * @returns The modified schema with custom modifications applied.
+ */
+function applyCustomModificationToSchema(schema: v2.SchemaObject): v2.SchemaObject {
+  if (!schema || typeof schema != 'object') return schema;
+  if ('$ref' in schema) {
+    // If it's a reference, we don't need to process it
+    // Because we will resolve it later (if it is located in the same document under `components.schemas`)
+    return schema;
+  }
+
+  switch (schema.type) {
+    case 'object':
+      if (schema.properties) {
+        Object.values(schema.properties).forEach(prop => applyCustomModificationToSchema(prop));
+      }
+      break;
+
+    case 'array':
+      if (schema.items) {
+        applyCustomModificationToSchema(schema.items);
+      }
+      break;
+
+    case 'integer':
+      schema.format = 'int32';
+      break;
+
+    case 'number':
+      schema.format = 'decimal';
+      break;
+  }
+
+  ['allOf', 'oneOf', 'anyOf'].forEach(key => {
+    if (Array.isArray(schema[key])) {
+      schema[key].forEach((sub: any) => applyCustomModificationToSchema(sub));
+    }
+  });
+
+  return schema;
 }
